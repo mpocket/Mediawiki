@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Reference Architecture to host WordPress on AWS - Creates RDS Aurora database cluster
+Description: Architecture to host MediaWiki on AWS - Creates RDS Aurora database cluster
 
 Metadata:
   AWS::CloudFormation::Interface:

@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Reference Architecture to host WordPress on AWS - Creates ElastiCache cache cluster
+Description: Architecture to host MediaWiki on AWS - Creates ElastiCache cache cluster
 
 Metadata:
 
