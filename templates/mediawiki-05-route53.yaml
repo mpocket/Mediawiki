@@ -33,7 +33,7 @@ Parameters:
     Type: String
   WPDomainName:
     AllowedPattern: ^(?!http)(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
-    Description: The main domain name of the WordPress site (e.g. example.com).
+    Description: The main domain name of the MediaWiki site (e.g. example.com).
     Type: String
 
 Resources:

@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates WordPress web Auto Scaling group
+Description: Architecture to host MediaWiki on AWS - Creates MediaWiki web Auto Scaling group
 
 Metadata:
 
@@ -22,11 +22,11 @@ Metadata:
         - PublicAlbHostname
         - SslCertificate
     - Label:
-        default: WordPress Parameters
+        default: MediaWiki Parameters
       Parameters:
         - WPTitle
         - WPDomainName
-        - WPDirectory
+        - MWDirectory
         - WPAdminUsername
         - WPAdminPassword
         - WPAdminEmail
@@ -81,7 +81,7 @@ Metadata:
         default: Admin Password
       WPAdminUsername:
         default: Admin Username
-      WPDirectory:
+      MWDirectory:
         default: Site Directory
       WPDomainName:
         default: Site Domain
@@ -187,33 +187,33 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   WPAdminEmail:
     AllowedPattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
-    Description: The WordPress admin email address.
+    Description: The MediaWiki admin email address.
     Type: String
   WPAdminPassword:
     AllowedPattern: ^([a-zA-Z0-9`~!#$%^&*()_+,\\-])*$
     ConstraintDescription: Must be letters (upper or lower), numbers, and these special characters '_'`~!#$%^&*()_+,-   
-    Description: The WordPress admin password.
+    Description: The MediaWiki admin password.
     Type: String
     NoEcho: true
   WPAdminUsername:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9_-])*([a-zA-Z0-9])$
-    Description: The WordPress admin username.
+    Description: The MediaWiki admin username.
     Type: String
-  WPDirectory:
+  MWDirectory:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9_-])*([a-zA-Z0-9])$
-    Description: The WordPress site directory.
+    Description: The MediaWiki site directory.
     Type: String
   WPDomainName:
     AllowedPattern: ^$|(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
-    Description: '[ Optional ] The main domain name of the WordPress site (e.g. example.com). Leave empty to use the ALB DNS name for the WordPress site.'
+    Description: '[ Optional ] The main domain name of the MediaWiki site (e.g. example.com). Leave empty to use the ALB DNS name for the MediaWiki site.'
     Type: String
   WPLocale:
-    Description: The main language of the WordPress site, as per https://codex.WordPress.org/Installing_WordPress_in_Your_Language. The default is 'en_GB'.
+    Description: The main language of the MediaWiki site, as per https://codex.MediaWiki.org/Installing_WordPress_in_Your_Language. The default is 'en_GB'.
     Type: String
     Default: en_GB
   WPTitle:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9 _-]*)([a-zA-Z0-9])$
-    Description: The WordPress website title.
+    Description: The MediaWiki website title.
     Type: String
 
 Conditions:
@@ -353,15 +353,15 @@ Resources:
                 !Join [
                   "",[
                     "#!/bin/bash -xe\n",
-                    "if [ ! -f /etc/httpd/conf.d/", !Ref WPDirectory, ".conf ]; then\n",                    
-                    "   touch /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo 'ServerName 127.0.0.1:80' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo 'DocumentRoot /var/www/wordpress/", !Ref WPDirectory, "' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo '<Directory /var/www/wordpress/", !Ref WPDirectory, ">' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo '  Options Indexes FollowSymLinks' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo '  AllowOverride All' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo '  Require all granted' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
-                    "   echo '</Directory>' >> /etc/httpd/conf.d/", !Ref WPDirectory, ".conf\n",
+                    "if [ ! -f /etc/httpd/conf.d/", !Ref MWDirectory, ".conf ]; then\n",                    
+                    "   touch /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo 'ServerName 127.0.0.1:80' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo 'DocumentRoot /var/www/mediawiki/", !Ref MWDirectory, "' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo '<Directory /var/www/mediawiki/", !Ref MWDirectory, ">' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo '  Options Indexes FollowSymLinks' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo '  AllowOverride All' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo '  Require all granted' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
+                    "   echo '</Directory>' >> /etc/httpd/conf.d/", !Ref MWDirectory, ".conf\n",
                     "fi\n"
                   ]
                 ]
@@ -410,54 +410,81 @@ Resources:
                   sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php-7.0.d/10-opcache.ini
                   sed -i 's/opcache.memory_consumption=.*/opcache.memory_consumption=512/' /etc/php-7.0.d/10-opcache.ini
                   # download opcache-instance.php to verify opcache status
-                  if [ ! -f /var/www/wordpress/${WPDirectory}/opcache-instanceid.php ]; then
-                      wget -P /var/www/wordpress/${WPDirectory}/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php
+                  if [ ! -f /var/www/mediawiki/${MWDirectory}/opcache-instanceid.php ]; then
+                      wget -P /var/www/mediawiki/${MWDirectory}/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php
                   fi
               mode: 000500
               owner: root
               group: root
         build_wordpress:
           files:
-            /tmp/install_wordpress.sh:
+            /tmp/install_mediawiki.sh:
               content:
                 !Join [
                   "",[
                     "#!/bin/bash -xe\n",
                     "\n",
-                    "# install wp-cli\n",
-                    "if [ ! -f /bin/wp/wp-cli.phar ]; then\n",
-                    "   curl -o /bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar\n",
-                    "   chmod +x /bin/wp\n",
-                    "fi\n",
+                    "#Vars\n",
+                    "    sitedir="crib-mediawiki"# !Ref MWDirectory\n",
+                    "    #dbname="wordpressdb"# !Ref DatabaseName\n",
+                    "    #dbserver="wordpresstest01-rds-srsfjdfjfemf-databasecluster-142yh0bp0kcdt.cluster-c4ckatnhdqid.eu-west-1.rds.amazonaws.com:3306" # !Ref DatabaseClusterEndpointAddress\n",
+                    "    #installdbuser="mpdbuser" # !Ref DatabaseMasterUsername\n",
+                    "    #installdbpass="Password123" # !Ref DatabaseMasterPassword\n",
+                    "    #dbuser="mpdbuser" # !Ref WPAdminUsername\n",
+                    "    #dbpass="Password123"# !Ref WPAdminPassword\n",
+                    "    #server="http://RefWPDomainName.com" ### JOIN: !Ref WPDomainName e.g. http://en.wikipedia.org\n",
+                    "    #scriptpath=$sitedir### example "/mediawiki-1.28.2"\n",
+                    "    #lang="en_GB"# !Ref WPLocale\n",
+                    "    wiki="RefWPTitle"# !Ref WPTitle\n",
+                    "    #pass=aaaaa# !Ref WPTitle | WPAdminUsername eg --lang=en --pass=aaaaa "Wiki Name" "Admin"\n",
+                    "\n",
+                    "\n",
+                    "# --admin_email='", !Ref WPAdminEmail, "'\n",
+                    "# --skip-email --allow-root\n",
+                    "# --dbprefix=mw_ --allow-root\n",
+                    "\n",
                     "\n",
                     "# make site directory\n",
-                    "if [ ! -d /var/www/wordpress/", !Ref WPDirectory, " ]; then\n",                    
-                    "   mkdir -p /var/www/wordpress/", !Ref WPDirectory, "\n",
+                    "if [ ! -d /var/www/mediawiki/$sitedir ]; then\n",
+                    "        mkdir -p /var/www/mediawiki/$sitedir\n",
+                    "        cd /var/www/mediawiki/$sitedir\n",
+                    "# install MediaWiki if not installed\n",\n",
+                    "# use public alb host name if mw domain name was empty\n",\n",
+                    "    curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
+                    "    tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/$sitedir --strip-components 1\n",
+                    "chown -R apache:apache /var/www/mediawiki/$sitedir/*\n",
+                    "fi\n",
                     "\n",
-                    "   cd /var/www/wordpress/", !Ref WPDirectory, "\n",
-                    "   # install wordpress if not installed\n",
-                    "   # use public alb host name if wp domain name was empty\n",
-                    "   if ! $(wp core is-installed --allow-root); then\n",
-                    "       wp core download --locale='", !Ref WPLocale, "' --allow-root\n",  
-                    "       wp core config --dbname='", !Ref DatabaseName, "' --dbuser='", !Ref DatabaseMasterUsername, "' --dbpass='", !Ref DatabaseMasterPassword, "' --dbhost='", !Ref DatabaseClusterEndpointAddress, "' --dbprefix=wp_ --allow-root\n",
-                    "       wp core install --url=", !If [ NoWPDomainName, !Ref PublicAlbHostname, !Join [ "", [ "'http://www.", !Ref WPDomainName, "'" ] ] ], " --title='", !Ref WPTitle, "' --admin_user='", !Ref WPAdminUsername, "' --admin_password='", !Ref WPAdminPassword, "' --admin_email='", !Ref WPAdminEmail, "' --skip-email --allow-root\n",
-                    "       sed -i \"/$table_prefix = 'wp_';/ a \\define('WP_HOME', 'http://' . \\$_SERVER['HTTP_HOST']); \" /var/www/wordpress/", !Ref WPDirectory, "/wp-config.php\n",
-                    "       sed -i \"/$table_prefix = 'wp_';/ a \\define('WP_SITEURL', 'http://' . \\$_SERVER['HTTP_HOST']); \" /var/www/wordpress/", !Ref WPDirectory, "/wp-config.php\n",
-                    "       # enable HTTPS in wp-config.php if ACM Public SSL Certificate parameter was not empty\n",
-                            !If [ NoSslCertificate, !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\# No ACM Public SSL Certificate \" /var/www/wordpress/", !Ref WPDirectory, "/wp-config.php\n" ] ] , !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\$_SERVER['HTTPS'] = 'on';\" /var/www/wordpress/", !Ref WPDirectory, "/wp-config.php\n" ] ] ],
+                    "if [ ! -f /var/www/mediawiki/$sitedir/LocalSettings.php ]; then\n",
+                    "    php /var/www/mediawiki/$sitedir/maintenance/install.php \\n",
+                    "        --dbserver="wordpresstest01-rds-srsfjdfjfemf-databasecluster-142yh0bp0kcdt.cluster-c4ckatnhdqid.eu-west-1.rds.amazonaws.com:3306" \\n",
+                    "        --installdbuser="mpdbuser" \\n",
+                    "        --installdbpass="Password123" \\n",
+                    "        --dbname="mediawikidb" \\n",
+                    "        --dbuser="mpdbuser" \\n",
+                    "        --dbpass="Password123" \\n",
+                    "        --dbprefix="mw_" \\n",
+                    "        --scriptpath="$sitedir" \\n",
+                    "        --server="http://comicrelief.com/" \\n",
+                    "        --wiki="mediawiki-autodeploy" \\n",
+                    "        --lang="en_GB" \\n",
+                    "        --pass="password1" $wiki "admin"\n",
+                    "fi\n",
+                    " # enable HTTPS in wp-config.php if ACM Public SSL Certificate parameter was not empty\n",
+                            !If [ NoSslCertificate, !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\# No ACM Public SSL Certificate \" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] , !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\$_SERVER['HTTPS'] = 'on';\" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] ],
                     "\n",
-                    "       # set permissions of wordpress site directories\n", 
-                    "       chown -R apache:apache /var/www/wordpress/", !Ref WPDirectory, "\n",
-                    "       chmod u+wrx /var/www/wordpress/", !Ref WPDirectory, "/wp-content/*\n",
-                    "       if [ ! -f /var/www/wordpress/", !Ref WPDirectory, "/opcache-instanceid.php ]; then\n",
-                    "         wget -P /var/www/wordpress/", !Ref WPDirectory, "/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php\n",
+                    "       # set permissions of MediaWiki site directories\n", 
+                    "       chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "\n",
+                    "       chmod u+wrx /var/www/mediawiki/", !Ref MWDirectory, "/wp-content/*\n",
+                    "       if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
+                    "         wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php\n",
                     "       fi\n",
                     "   fi\n",
                     "   RESULT=$?\n",
                     "   if [ $RESULT -eq 0 ]; then\n",
-                    "       touch /var/www/wordpress/", !Ref WPDirectory, "/wordpress.initialized\n",
+                    "       touch /var/www/mediawiki/", !Ref MWDirectory, "/MediaWiki.initialized\n",
                     "         else\n",
-                    "       touch /var/www/wordpress/", !Ref WPDirectory, "/wordpress.failed\n",
+                    "       touch /var/www/mediawiki/", !Ref MWDirectory, "/MediaWiki.failed\n",
                     "   fi\n",
                     "fi\n"
                   ]
@@ -468,7 +495,7 @@ Resources:
         install_wordpress:
           commands:
             install_wordpress:
-              command: ./install_wordpress.sh
+              command: ./install_mediawiki.sh
               cwd: /tmp
               ignoreErrors: false          
         install_cacheclient:
@@ -502,8 +529,8 @@ Resources:
           !Sub |
             #!/bin/bash -xe
             yum update -y
-            mkdir -p /var/www/wordpress
-            mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/wordpress
+            mkdir -p /var/www/MediaWiki
+            mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/MediaWiki
             /opt/aws/bin/cfn-init --configsets deploy_webserver --verbose --stack ${AWS::StackName} --resource WebLaunchConfiguration --region ${AWS::Region}
             /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
 

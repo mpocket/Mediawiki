@@ -110,14 +110,14 @@ Resources:
         ]
       Tags:
         - Key: Name
-          Value: !Join [ '', [ 'WordPress / ', !Ref 'AWS::StackName' ] ]
+          Value: !Join [ '', [ 'MediaWiki / ', !Ref 'AWS::StackName' ] ]
       VpcSecurityGroupIds:
       - !Ref ElastiCacheSecurityGroup       
   ElastiCacheSubnetGroup: 
     Type: AWS::ElastiCache::SubnetGroup
     Properties: 
       CacheSubnetGroupName: !Join [ '', [ !Ref ElastiCacheClusterName, SubnetGroup ] ]
-      Description: ElastiCache Subnet Group for WordPress
+      Description: ElastiCache Subnet Group for MediaWiki
       SubnetIds: 
         !If [
           MoreThan2AZ,
