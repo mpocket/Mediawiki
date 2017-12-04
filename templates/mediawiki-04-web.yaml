@@ -325,6 +325,19 @@ Resources:
       ResourceSignal:
         Count: !Ref WebAsgMin
         Timeout: PT5M
+  UpdatePolicy:
+      AutoScalingRollingUpdate:
+          MaxBatchSize: 1
+          MinInstancesInService: 1
+          MinSuccessfulInstancesPercent: 50
+          PauseTime: PT30S
+          SuspendProcesses:
+            - HealthCheck
+            - ReplaceUnhealthy
+            - AZRebalance
+            - AlarmNotification
+            - ScheduledActions
+          WaitOnResourceSignals: True
   WebLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
@@ -424,62 +437,42 @@ Resources:
                   "",[
                     "#!/bin/bash -xe\n",
                     "\n",
-                    "#Vars\n",
-                    "    sitedir="crib-mediawiki"# !Ref MWDirectory\n",
-                    "    #dbname="wordpressdb"# !Ref DatabaseName\n",
-                    "    #dbserver="wordpresstest01-rds-srsfjdfjfemf-databasecluster-142yh0bp0kcdt.cluster-c4ckatnhdqid.eu-west-1.rds.amazonaws.com:3306" # !Ref DatabaseClusterEndpointAddress\n",
-                    "    #installdbuser="mpdbuser" # !Ref DatabaseMasterUsername\n",
-                    "    #installdbpass="Password123" # !Ref DatabaseMasterPassword\n",
-                    "    #dbuser="mpdbuser" # !Ref WPAdminUsername\n",
-                    "    #dbpass="Password123"# !Ref WPAdminPassword\n",
-                    "    #server="http://RefWPDomainName.com" ### JOIN: !Ref WPDomainName e.g. http://en.wikipedia.org\n",
-                    "    #scriptpath=$sitedir### example "/mediawiki-1.28.2"\n",
-                    "    #lang="en_GB"# !Ref WPLocale\n",
-                    "    wiki="RefWPTitle"# !Ref WPTitle\n",
-                    "    #pass=aaaaa# !Ref WPTitle | WPAdminUsername eg --lang=en --pass=aaaaa "Wiki Name" "Admin"\n",
-                    "\n",
                     "\n",
                     "# --admin_email='", !Ref WPAdminEmail, "'\n",
                     "# --skip-email --allow-root\n",
-                    "# --dbprefix=mw_ --allow-root\n",
                     "\n",
                     "\n",
                     "# make site directory\n",
-                    "if [ ! -d /var/www/mediawiki/$sitedir ]; then\n",
-                    "        mkdir -p /var/www/mediawiki/$sitedir\n",
-                    "        cd /var/www/mediawiki/$sitedir\n",
+                    "if [ ! -d /var/www/mediawiki/", !Ref MWDirectory, " ]; then\n",
+                    "        mkdir -p /var/www/mediawiki/", !Ref MWDirectory, "\n",
+                    "        cd /var/www/mediawiki/", !Ref MWDirectory, "\n",
                     "# install MediaWiki if not installed\n",\n",
-                    "# use public alb host name if mw domain name was empty\n",\n",
-                    "    curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
-                    "    tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/$sitedir --strip-components 1\n",
-                    "chown -R apache:apache /var/www/mediawiki/$sitedir/*\n",
+                    "# use public alb host name if mw domain name was empty",\n",
+                    "  curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
+                    "  tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
+                    "chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/*\n",
                     "fi\n",
                     "\n",
-                    "if [ ! -f /var/www/mediawiki/$sitedir/LocalSettings.php ]; then\n",
-                    "    php /var/www/mediawiki/$sitedir/maintenance/install.php \\n",
-                    "        --dbserver="wordpresstest01-rds-srsfjdfjfemf-databasecluster-142yh0bp0kcdt.cluster-c4ckatnhdqid.eu-west-1.rds.amazonaws.com:3306" \\n",
-                    "        --installdbuser="mpdbuser" \\n",
-                    "        --installdbpass="Password123" \\n",
-                    "        --dbname="mediawikidb" \\n",
-                    "        --dbuser="mpdbuser" \\n",
-                    "        --dbpass="Password123" \\n",
-                    "        --dbprefix="mw_" \\n",
-                    "        --scriptpath="$sitedir" \\n",
-                    "        --server="http://comicrelief.com/" \\n",
-                    "        --wiki="mediawiki-autodeploy" \\n",
-                    "        --lang="en_GB" \\n",
-                    "        --pass="password1" $wiki "admin"\n",
+                    "\n",
+                    "if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
+                    "  php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php --dbserver=", !Ref DatabaseClusterEndpointAddress, " --installdbuser=", !Ref DatabaseMasterUsername, " --installdbpass=", !Ref DatabaseMasterPassword, " --dbname=", !Ref DatabaseName, " --dbuser=", !Ref DatabaseMasterUsername, " --dbpass=", !Ref DatabaseMasterPassword, " --dbprefix=mw_ --scriptpath=", !Join [ "", [ "'/'", !Ref MWDirectory, "'" ] ], --server=", !If [ NoWPDomainName, !Ref PublicAlbHostname, !Join [ "", [ "'http://www.", !Ref WPDomainName, "'" ] ] ], --wiki="mediawiki-autodeploy" --lang="en_GB" --pass="password1" ", !Ref WPTitle, " admin\n",
                     "fi\n",
+                    "\n",
+                    "\n",
                     " # enable HTTPS in wp-config.php if ACM Public SSL Certificate parameter was not empty\n",
-                            !If [ NoSslCertificate, !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\# No ACM Public SSL Certificate \" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] , !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\$_SERVER['HTTPS'] = 'on';\" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] ],
+                            !If [ NoSslCertificate, !Join [ '', [ "       sed -i \"/$table_prefix = 'mw_';/ a \\# No ACM Public SSL Certificate \" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] , !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\$_SERVER['HTTPS'] = 'on';\" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] ],
                     "\n",
-                    "       # set permissions of MediaWiki site directories\n", 
-                    "       chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "\n",
-                    "       chmod u+wrx /var/www/mediawiki/", !Ref MWDirectory, "/wp-content/*\n",
-                    "       if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
-                    "         wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php\n",
-                    "       fi\n",
-                    "   fi\n",
+                    "\n",
+                    "# set permissions of MediaWiki site directories\n", 
+                    "  chown -R root:apache /var/www/mediawiki/\n",
+                    "  find /var/www/mediawiki/ -type d -print0 | xargs -0 chmod 750\n",
+                    "  find /var/www/mediawiki/ -type f -print0 | xargs -0 chmod 640\n",
+                    "  chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/images \n",
+                    "  chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/cache \n",
+                    "  if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
+                    "    wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php\n",
+                    "  fi\n",
+                    "fi\n",
                     "   RESULT=$?\n",
                     "   if [ $RESULT -eq 0 ]; then\n",
                     "       touch /var/www/mediawiki/", !Ref MWDirectory, "/MediaWiki.initialized\n",
