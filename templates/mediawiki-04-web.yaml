@@ -324,13 +324,13 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: !Ref WebAsgMin
-        Timeout: PT5M
+        Timeout: PT15M
     UpdatePolicy:
         AutoScalingRollingUpdate:
             MaxBatchSize: 1
             MinInstancesInService: 1
             MinSuccessfulInstancesPercent: 50
-            PauseTime: PT30S
+            PauseTime: PT15M
             SuspendProcesses:
               - HealthCheck
               - ReplaceUnhealthy
