@@ -325,19 +325,19 @@ Resources:
       ResourceSignal:
         Count: !Ref WebAsgMin
         Timeout: PT5M
-  UpdatePolicy:
-      AutoScalingRollingUpdate:
-          MaxBatchSize: 1
-          MinInstancesInService: 1
-          MinSuccessfulInstancesPercent: 50
-          PauseTime: PT30S
-          SuspendProcesses:
-            - HealthCheck
-            - ReplaceUnhealthy
-            - AZRebalance
-            - AlarmNotification
-            - ScheduledActions
-          WaitOnResourceSignals: True
+    UpdatePolicy:
+        AutoScalingRollingUpdate:
+            MaxBatchSize: 1
+            MinInstancesInService: 1
+            MinSuccessfulInstancesPercent: 50
+            PauseTime: PT30S
+            SuspendProcesses:
+              - HealthCheck
+              - ReplaceUnhealthy
+              - AZRebalance
+              - AlarmNotification
+              - ScheduledActions
+            WaitOnResourceSignals: True
   WebLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
@@ -346,7 +346,7 @@ Resources:
           deploy_webserver:
             - install_webserver
             - build_cacheclient
-            - build_wordpress
+            - build_mediawiki
             - build_opcache
             - install_cacheclient
             - install_wordpress
@@ -359,7 +359,12 @@ Resources:
               httpd24: []
               mysql56: []
               php70: []
-              php70-mysqlnd: []
+              mod_php70u: []
+              php70u-cli: []
+              php70u-mysqlnd: []
+              php70u-mbstring: []
+              php70u-xml: []
+              php70u-json: []
           files:
             /tmp/create_site_conf.sh:
               content:
@@ -429,7 +434,7 @@ Resources:
               mode: 000500
               owner: root
               group: root
-        build_wordpress:
+        build_mediawiki:
           files:
             /tmp/install_mediawiki.sh:
               content:
@@ -438,14 +443,10 @@ Resources:
                     "#!/bin/bash -xe\n",
                     "\n",
                     "\n",
-                    "# --admin_email='", !Ref WPAdminEmail, "'\n",
-                    "# --skip-email --allow-root\n",
-                    "\n",
-                    "\n",
                     "# make site directory\n",
                     "if [ ! -d /var/www/mediawiki/", !Ref MWDirectory, " ]; then\n",
-                    "        mkdir -p /var/www/mediawiki/", !Ref MWDirectory, "\n",
-                    "        cd /var/www/mediawiki/", !Ref MWDirectory, "\n",
+                    "  mkdir -p /var/www/mediawiki/", !Ref MWDirectory, "\n",
+                    "  cd /var/www/mediawiki/", !Ref MWDirectory, "\n",
                     "# install MediaWiki if not installed\n",\n",
                     "# use public alb host name if mw domain name was empty",\n",
                     "  curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
