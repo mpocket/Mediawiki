@@ -181,7 +181,7 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   WebSubnet1:
     Description: Select an existing web subnet for AZ 1.
-    Type: AWS::EC2::Subnet::Id 
+    Type: AWS::EC2::Subnet::Id
   WebSubnet2:
     Description: Select an existing web subnet for AZ 2.
     Type: AWS::EC2::Subnet::Id
@@ -309,6 +309,7 @@ Resources:
       LaunchConfigurationName: !Ref WebLaunchConfiguration
       MaxSize: !Ref WebAsgMax
       MinSize: !Ref WebAsgMin
+      DesiredCapacity: !Ref WebAsgMin
       Tags:
         - Key: Name
           Value: !Join [ '', [ 'Web ASG / ', !Ref 'AWS::StackName' ] ]
@@ -321,16 +322,12 @@ Resources:
           [ !Ref WebSubnet0, !Ref WebSubnet1, !Ref WebSubnet2 ],
           [ !Ref WebSubnet0, !Ref WebSubnet1 ]
         ]
-    CreationPolicy:
-      ResourceSignal:
-        Count: !Ref WebAsgMin
-        Timeout: PT15M
     UpdatePolicy:
         AutoScalingRollingUpdate:
             MaxBatchSize: 1
             MinInstancesInService: 1
-            MinSuccessfulInstancesPercent: 50
-            PauseTime: PT15M
+            MinSuccessfulInstancesPercent: 100
+            PauseTime: PT10M
             SuspendProcesses:
               - HealthCheck
               - ReplaceUnhealthy
@@ -349,7 +346,7 @@ Resources:
             - build_mediawiki
             - build_opcache
             - install_cacheclient
-            - install_wordpress
+            - install_mediawiki
             - install_opcache
             - start_webserver
         install_webserver:
@@ -359,12 +356,12 @@ Resources:
               httpd24: []
               mysql56: []
               php70: []
-              mod_php70u: []
-              php70u-cli: []
-              php70u-mysqlnd: []
-              php70u-mbstring: []
-              php70u-xml: []
-              php70u-json: []
+              php70-common: []
+              php70-mysqlnd: []
+              php70-cli: []               
+              php70-mbstring: []          
+              php70-xml: []               
+              php70-json: []
           files:
             /tmp/create_site_conf.sh:
               content:
@@ -443,12 +440,36 @@ Resources:
                     "#!/bin/bash -xe\n",
                     "\n",
                     "\n",
-                    "# make site directory\n",
+                    "dbserver=", !Ref DatabaseClusterEndpointAddress, "\n",
+                    "installdbuser=", !Ref DatabaseMasterUsername, "\n",
+                    "installdbpass=", !Ref DatabaseMasterPassword, "\n",
+                    "dbname=", !Ref DatabaseName, "\n",
+                    "dbuser=", !Ref DatabaseMasterUsername, "\n",
+                    "dbpass=", !Ref DatabaseMasterPassword, "\n",
+                    "dbprefix=\"mw_\"\n",
+                    "mwdir=", !Ref MWDirectory, "\n",
+                    "scriptpath=\"/$mwdir\"\n",
+                    "server=\"", !If [ NoWPDomainName, !Ref PublicAlbHostname, !Join [ "" , [ "http://www.", ", !Ref WPDomainName, \"\n" ] ] ],
+                    "wiki=\"mediawiki-autodeploy\"\n",
+                    "lang=\"en_GB\"\n",
+                    "pass=\"password1\"\n",
+                    "# Add Epel-Release repo and install PHP modules\n",
+                    "# wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                    "# yum install epel-release-latest-7.noarch.rpm -y\n",
+                    "# rpm -Uvh https://centos7.iuscommunity.org/ius-release.rpm\n",
+                    "# yum install mod_php70u php70u-cli php70u-mbstring php70u-xml php70u-json -y\n",
+                    "\n",
+                    "\n",
+                    "# make site directory and test file\n",
                     "if [ ! -d /var/www/mediawiki/", !Ref MWDirectory, " ]; then\n",
                     "  mkdir -p /var/www/mediawiki/", !Ref MWDirectory, "\n",
                     "  cd /var/www/mediawiki/", !Ref MWDirectory, "\n",
-                    "# install MediaWiki if not installed\n",\n",
-                    "# use public alb host name if mw domain name was empty",\n",
+                    "\n",
+                    "# Create phpinfo page to satisfy WebAutoScalingGroup/CreationPolicy test target\n",
+                    "echo \"<?php phpinfo(); ?>\" | sudo tee /var/www/mediawiki/", !Ref MWDirectory, "/test.php\n",
+                    "\n",
+                    "# install MediaWiki if not installed\n",
+                    "# use public alb host name if mw domain name was empty\n",
                     "  curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
                     "  tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
                     "chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/*\n",
@@ -456,12 +477,12 @@ Resources:
                     "\n",
                     "\n",
                     "if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
-                    "  php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php --dbserver=", !Ref DatabaseClusterEndpointAddress, " --installdbuser=", !Ref DatabaseMasterUsername, " --installdbpass=", !Ref DatabaseMasterPassword, " --dbname=", !Ref DatabaseName, " --dbuser=", !Ref DatabaseMasterUsername, " --dbpass=", !Ref DatabaseMasterPassword, " --dbprefix=mw_ --scriptpath=", !Join [ "", [ "'/'", !Ref MWDirectory, "'" ] ], --server=", !If [ NoWPDomainName, !Ref PublicAlbHostname, !Join [ "", [ "'http://www.", !Ref WPDomainName, "'" ] ] ], --wiki="mediawiki-autodeploy" --lang="en_GB" --pass="password1" ", !Ref WPTitle, " admin\n",
+                    "  php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php  --dbserver=$dbserver --installdbuser=$installdbuser --installdbpass=$installdbpass --dbname=$dbname --dbuser=$dbuser --dbpass=$dbpass --dbprefix=$dbprefix --scriptpath=$scriptpath --server=$server --wiki=$wiki --lang=$lang --pass=$pass ", !Ref WPTitle, " admin\n",
                     "fi\n",
                     "\n",
                     "\n",
                     " # enable HTTPS in wp-config.php if ACM Public SSL Certificate parameter was not empty\n",
-                            !If [ NoSslCertificate, !Join [ '', [ "       sed -i \"/$table_prefix = 'mw_';/ a \\# No ACM Public SSL Certificate \" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] , !Join [ '', [ "       sed -i \"/$table_prefix = 'wp_';/ a \\$_SERVER['HTTPS'] = 'on';\" /var/www/mediawiki/", !Ref MWDirectory, "/wp-config.php\n" ] ] ],
+                    " # RemovedCode \n",
                     "\n",
                     "\n",
                     "# set permissions of MediaWiki site directories\n", 
@@ -486,9 +507,9 @@ Resources:
               mode: 000500
               owner: root
               group: root
-        install_wordpress:
+        install_mediawiki:
           commands:
-            install_wordpress:
+            install_mediawiki:
               command: ./install_mediawiki.sh
               cwd: /tmp
               ignoreErrors: false          
@@ -522,11 +543,12 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
+            CFNSIG=0
             yum update -y
-            mkdir -p /var/www/MediaWiki
-            mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/MediaWiki
+            mkdir -p /var/www/mediawiki
+            mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
             /opt/aws/bin/cfn-init --configsets deploy_webserver --verbose --stack ${AWS::StackName} --resource WebLaunchConfiguration --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
+            # /opt/aws/bin/cfn-signal --exit-code $CFNSIG --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
 
 Outputs:
 
