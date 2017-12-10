@@ -114,9 +114,10 @@ Resources:
   PublicAlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: /wp-login.php
-      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 4
+      HealthCheckIntervalSeconds: 300
+      HealthCheckPath: /test.php
+      HealthCheckTimeoutSeconds: 30
       Name: 'WordPressPublicAlb'
       Port: 80
       Protocol: HTTP
