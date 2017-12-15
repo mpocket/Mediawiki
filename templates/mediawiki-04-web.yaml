@@ -322,11 +322,15 @@ Resources:
           [ !Ref WebSubnet0, !Ref WebSubnet1, !Ref WebSubnet2 ],
           [ !Ref WebSubnet0, !Ref WebSubnet1 ]
         ]
+    CreationPolicy:
+      ResourceSignal:
+        Count: !Ref WebAsgMin
+        Timeout: PT10M
     UpdatePolicy:
         AutoScalingRollingUpdate:
             MaxBatchSize: 1
             MinInstancesInService: 1
-            MinSuccessfulInstancesPercent: 100
+            MinSuccessfulInstancesPercent: 50
             PauseTime: PT10M
             SuspendProcesses:
               - HealthCheck
@@ -463,19 +467,19 @@ Resources:
                     "fi\n",
                     "\n",
                     "\n",
-                    "if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
-                    " php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
-                    " --dbserver=", !Ref DatabaseClusterEndpointAddress,
-                    " --installdbuser=", !Ref DatabaseMasterUsername,
-                    " --installdbpass=", !Ref DatabaseMasterPassword,
-                    " --dbname=", !Ref DatabaseName,
-                    " --dbuser=", !Ref DatabaseMasterUsername,
-                    " --dbpass=", !Ref DatabaseMasterPassword,
-                    " --dbprefix=\"mw_\"",
-                    " --scriptpath=\"$scriptpath\"",
-                    " --service=$serviceurl",
-                    " --pass=$pass ", !Ref WPTitle, " $admin\n",
-                    "fi\n",
+                    "# if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
+                    " # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
+                    " # --dbserver=", !Ref DatabaseClusterEndpointAddress,
+                    " # --installdbuser=", !Ref DatabaseMasterUsername,
+                    " # --installdbpass=", !Ref DatabaseMasterPassword,
+                    " # --dbname=", !Ref DatabaseName,
+                    " # --dbuser=", !Ref DatabaseMasterUsername,
+                    " # --dbpass=", !Ref DatabaseMasterPassword,
+                    " # --dbprefix=\"mw_\"",
+                    " # --scriptpath=\"$scriptpath\"",
+                    " # --service=$serviceurl",
+                    " # --pass=$pass ", !Ref WPTitle, " $admin\n",
+                    "# fi\n",
                     "\n",
                     "\n",
                     "# set permissions of MediaWiki site directories\n",
@@ -539,7 +543,7 @@ Resources:
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
             /opt/aws/bin/cfn-init --configsets deploy_webserver --verbose --stack ${AWS::StackName} --resource WebLaunchConfiguration --region ${AWS::Region}
-            # /opt/aws/bin/cfn-signal --exit-code $CFNSIG --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
 
 Outputs:
 
