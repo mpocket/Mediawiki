@@ -401,7 +401,7 @@ Resources:
               content:
                 !Sub |
                   #!/bin/bash -xe
-                  wget -P /tmp/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz
+                  wget -P /tmp/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz
                   tar -xf '/tmp/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz'
                   cp '/tmp/artifact/amazon-elasticache-cluster-client.so' /usr/lib64/php/7.0/modules/
                   if [ ! -f /etc/php-7.0.d/50-memcached.ini ]; then
@@ -430,7 +430,7 @@ Resources:
                   sed -i 's/opcache.memory_consumption=.*/opcache.memory_consumption=512/' /etc/php-7.0.d/10-opcache.ini
                   # download opcache-instance.php to verify opcache status
                   if [ ! -f /var/www/mediawiki/${MWDirectory}/opcache-instanceid.php ]; then
-                      wget -P /var/www/mediawiki/${MWDirectory}/ https://s3.amazonaws.com/aws-refarch/wordpress/latest/bits/opcache-instanceid.php
+                      wget -P /var/www/mediawiki/${MWDirectory}/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php
                   fi
               mode: 000500
               owner: root
@@ -461,7 +461,7 @@ Resources:
                     " echo \"<?php phpinfo(); ?>\" | sudo tee /var/www/mediawiki/", !Ref MWDirectory, "/test.php\n",
                     " # install MediaWiki if not installed\n",
                     " # use public alb host name if mw domain name was empty\n",
-                    " curl -O -s https://releases.wikimedia.org/mediawiki/1.28/mediawiki-1.28.2.tar.gz\n",
+                    " wget -P /var/www/mediawiki/${MWDirectory}/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/mediawiki-1.28.2.tar.gz\n",
                     " tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
                     " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/*\n",
                     "fi\n",
