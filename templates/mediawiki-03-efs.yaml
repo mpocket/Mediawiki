@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates EFS file system
+Description: Reference Architecture to host WordPress on AWS - Creates EFS file system
 
 Metadata:
 
@@ -81,7 +81,7 @@ Resources:
         !If [ UseAWS-ManagedCMK, !Ref 'AWS::NoValue', !Ref EfsCmk ]
       FileSystemTags:
         - Key: Name
-          Value: !Join [ '', [ 'MediaWiki / ', !Ref 'AWS::StackName' ] ]
+          Value: !Join [ '', [ 'WordPress / ', !Ref 'AWS::StackName' ] ]
       PerformanceMode: generalPurpose
   ElasticFileSystemMountTarget0:
     Type: AWS::EFS::MountTarget
@@ -114,4 +114,4 @@ Outputs:
     Value: !Join [ '.', [ !Ref ElasticFileSystem, 'efs', !Ref 'AWS::Region', 'amazonaws', 'com' ] ]
   ElasticFileSystemMountCommand:
     Description: Mount command for mounting the EFS file system.
-    Value: !Join [ '', [ 'sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ', !Join [ '.', [ !Ref ElasticFileSystem, 'efs', !Ref 'AWS::Region', 'amazonaws', 'com:/ /var/www/mediawiki' ] ] ] ]
+    Value: !Join [ '', [ 'sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ', !Join [ '.', [ !Ref ElasticFileSystem, 'efs', !Ref 'AWS::Region', 'amazonaws', 'com:/ /var/www/wordpress' ] ] ] ]

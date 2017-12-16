@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates ElastiCache cache cluster
+Description: Reference Architecture to host WordPress on AWS - Creates ElastiCache cache cluster
 
 Metadata:
 
@@ -110,14 +110,14 @@ Resources:
         ]
       Tags:
         - Key: Name
-          Value: !Join [ '', [ 'MediaWiki / ', !Ref 'AWS::StackName' ] ]
+          Value: !Join [ '', [ 'WordPress / ', !Ref 'AWS::StackName' ] ]
       VpcSecurityGroupIds:
       - !Ref ElastiCacheSecurityGroup       
   ElastiCacheSubnetGroup: 
     Type: AWS::ElastiCache::SubnetGroup
     Properties: 
       CacheSubnetGroupName: !Join [ '', [ !Ref ElastiCacheClusterName, SubnetGroup ] ]
-      Description: ElastiCache Subnet Group for MediaWiki
+      Description: ElastiCache Subnet Group for WordPress
       SubnetIds: 
         !If [
           MoreThan2AZ,
