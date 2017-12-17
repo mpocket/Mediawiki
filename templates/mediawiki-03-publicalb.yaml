@@ -114,9 +114,9 @@ Resources:
   PublicAlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthyThresholdCount: 5
-      UnhealthyThresholdCount: 5
-      HealthCheckIntervalSeconds: 120
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 10
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /test.php
       HealthCheckTimeoutSeconds: 10
       Name: 'WordPressPublicAlb'
@@ -125,7 +125,6 @@ Resources:
       Tags:
       - Key: Name
         Value: !Join [ '', [ 'Public ALB / ', !Ref 'AWS::StackName' ] ]
-      UnhealthyThresholdCount: 5
       VpcId: !Ref Vpc
 
 Outputs:
