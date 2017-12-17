@@ -96,9 +96,10 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       Cooldown: 60
-      HealthCheckGracePeriod: 120
+      HealthCheckGracePeriod: 300
       HealthCheckType: EC2
       LaunchConfigurationName: !Ref BastionLaunchConfiguration
+      DesiredCapacity: 1
       MaxSize: 1
       MinSize: 0
       Tags:

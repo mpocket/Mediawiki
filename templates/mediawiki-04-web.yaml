@@ -304,7 +304,7 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       Cooldown: 60
-      HealthCheckGracePeriod: 120
+      HealthCheckGracePeriod: 420
       HealthCheckType: ELB
       LaunchConfigurationName: !Ref WebLaunchConfiguration
       MaxSize: !Ref WebAsgMax
@@ -322,16 +322,12 @@ Resources:
           [ !Ref WebSubnet0, !Ref WebSubnet1, !Ref WebSubnet2 ],
           [ !Ref WebSubnet0, !Ref WebSubnet1 ]
         ]
-    CreationPolicy:
-      ResourceSignal:
-        Count: !Ref WebAsgMin
-        Timeout: PT10M
     UpdatePolicy:
         AutoScalingRollingUpdate:
             MaxBatchSize: 1
             MinInstancesInService: 1
-            MinSuccessfulInstancesPercent: 50
-            PauseTime: PT10M
+            MinSuccessfulInstancesPercent: 100
+            PauseTime: PT15M
             SuspendProcesses:
               - HealthCheck
               - ReplaceUnhealthy
@@ -448,8 +444,7 @@ Resources:
                     "scriptpath=\"/$mwdir\"\n",
                     "domainname=", !Sub "http://${WPDomainName}\"", "\n",
                     "serviceurl=\"", !If [ NoWPDomainName, !Ref PublicAlbHostname, $domainname ],"\n",
-                    " #NONSENSE\n",
-                    "admin='admin'",
+                    "admin='admin'\n",
                     "pass=\"password1\"\n",
                     "\n",
                     "\n",
@@ -461,7 +456,7 @@ Resources:
                     " echo \"<?php phpinfo(); ?>\" | sudo tee /var/www/mediawiki/", !Ref MWDirectory, "/test.php\n",
                     " # install MediaWiki if not installed\n",
                     " # use public alb host name if mw domain name was empty\n",
-                    " wget -P /var/www/mediawiki/${MWDirectory}/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/mediawiki-1.28.2.tar.gz\n",
+                    " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/mediawiki-1.28.2.tar.gz\n",
                     " tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
                     " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/*\n",
                     "fi\n",
@@ -486,8 +481,8 @@ Resources:
                     " chown -R root:apache /var/www/mediawiki/\n",
                     " find /var/www/mediawiki/ -type d -print0 | xargs -0 chmod 750\n",
                     " find /var/www/mediawiki/ -type f -print0 | xargs -0 chmod 640\n",
-                    " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/images \n",
-                    " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/cache \n",
+                    " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/images\n",
+                    " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/cache\n",
                     "if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
                     " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php\n",
                     "fi\n",
@@ -538,7 +533,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            CFNSIG=0
+            BUILD=00391
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
