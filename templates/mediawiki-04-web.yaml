@@ -304,7 +304,7 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       Cooldown: 60
-      HealthCheckGracePeriod: 420
+      HealthCheckGracePeriod: 120
       HealthCheckType: ELB
       LaunchConfigurationName: !Ref WebLaunchConfiguration
       MaxSize: !Ref WebAsgMax
@@ -327,7 +327,7 @@ Resources:
             MaxBatchSize: 1
             MinInstancesInService: 1
             MinSuccessfulInstancesPercent: 100
-            PauseTime: PT15M
+            PauseTime: PT10M
             SuspendProcesses:
               - HealthCheck
               - ReplaceUnhealthy
@@ -441,11 +441,12 @@ Resources:
                     "\n",
                     "\n",
                     "mwdir=", !Ref MWDirectory, "\n",
-                    "scriptpath=\"/$mwdir\"\n",
-                    "domainname=", !Sub "http://${WPDomainName}\"", "\n",
-                    "serviceurl=\"", !If [ NoWPDomainName, !Ref PublicAlbHostname, $domainname ],"\n",
-                    "admin='admin'\n",
-                    "pass=\"password1\"\n",
+                    "scriptpath=\"\"\n",
+                    "domainname=", !Sub '"http://${WPDomainName}"', "\n",
+                    "publicalbhostname=", !Sub '"http://${PublicAlbHostname}"', "\n",
+                    "serviceurl=", !If [ NoWPDomainName, $publicalbhostname, $domainname ], "\n",
+                    "admin=\"admin\"\n",
+                    "pass=\"password\"\n",
                     "\n",
                     "\n",
                     "# make site directory and test file\n",
@@ -458,39 +459,44 @@ Resources:
                     " # use public alb host name if mw domain name was empty\n",
                     " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/mediawiki-1.28.2.tar.gz\n",
                     " tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
-                    " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/*\n",
-                    "fi\n",
-                    "\n",
-                    "\n",
-                    "# if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
-                    " # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
-                    " # --dbserver=", !Ref DatabaseClusterEndpointAddress,
-                    " # --installdbuser=", !Ref DatabaseMasterUsername,
-                    " # --installdbpass=", !Ref DatabaseMasterPassword,
-                    " # --dbname=", !Ref DatabaseName,
-                    " # --dbuser=", !Ref DatabaseMasterUsername,
-                    " # --dbpass=", !Ref DatabaseMasterPassword,
-                    " # --dbprefix=\"mw_\"",
-                    " # --scriptpath=\"$scriptpath\"",
-                    " # --service=$serviceurl",
-                    " # --pass=$pass ", !Ref WPTitle, " $admin\n",
-                    "# fi\n",
-                    "\n",
-                    "\n",
                     "# set permissions of MediaWiki site directories\n",
                     " chown -R root:apache /var/www/mediawiki/\n",
                     " find /var/www/mediawiki/ -type d -print0 | xargs -0 chmod 750\n",
                     " find /var/www/mediawiki/ -type f -print0 | xargs -0 chmod 640\n",
                     " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/images\n",
                     " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/cache\n",
-                    "if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
-                    " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php\n",
-                    "fi\n",
+                    "\n",
+                    "\n",
+                    " # Check for MediaWiki configuration file and if not present copy in the version for this stack\n",
+                    "   if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
+                    "     wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/LocalSettings.php\n",
+                    "     chown root:apache /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
+                    "     chmod 640 /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
+                    "     # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
+                    "     # --dbserver=", !Ref DatabaseClusterEndpointAddress,
+                    "     # --installdbuser=", !Ref DatabaseMasterUsername,
+                    "     # --installdbpass=", !Ref DatabaseMasterPassword,
+                    "     # --dbname=", !Ref DatabaseName,
+                    "     # --dbuser=", !Ref DatabaseMasterUsername,
+                    "     # --dbpass=", !Ref DatabaseMasterPassword,
+                    "     # --dbprefix=\"mw_\"",
+                    "     # --scriptpath=\"$scriptpath\"",
+                    "     # --service=$serviceurl",
+                    "     # --pass=$pass ", !Ref WPTitle, " $admin\n",
+                    "\n",
+                    "\n",
+                    "     if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
+                    "       wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php\n",
+                    "     fi\n",
+                    "   fi\n",
+                    "\n",
                     "RESULT=$?\n",
-                    "if [ $RESULT -eq 0 ]; then\n",
-                    " touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.initialized\n",
-                    " else\n",
-                    " touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.failed\n",
+                    "\n",
+                    " if [ $RESULT -eq 0 ]; then\n",
+                    "   touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.initialized\n",
+                    "   else\n",
+                    "   touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.failed\n",
+                    " fi\n",
                     "fi\n"
                   ]
                 ]
@@ -533,7 +539,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            BUILD=00391
+            BUILD=00404
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
