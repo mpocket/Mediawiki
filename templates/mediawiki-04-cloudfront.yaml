@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates CloudFront distribution (if selected)
+Description: Architecture to host CRIB MediaWiki on AWS - Creates CloudFront distribution (if selected)
 
 Metadata:
 
@@ -11,14 +11,14 @@ Metadata:
         default: AWS Parameters
       Parameters:
         - CloudFrontAcmCertificate
-        - WPDomainName
+        - MWDomainName
         - PublicAlbDnsName
     ParameterLabels:
       CloudFrontAcmCertificate:
         default: CloudFront Certificate ARN
       PublicAlbDnsName:
         default: Public ALB DNS Name
-      WPDomainName:
+      MWDomainName:
         default: Domain name of the MediaWiki site
 
 Parameters:
@@ -30,7 +30,7 @@ Parameters:
   PublicAlbDnsName:
     Description: The public application load balancer dns name.
     Type: String
-  WPDomainName:
+  MWDomainName:
     AllowedPattern: ^$|(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
     Description: '[ Optional ] The main domain name of the MediaWiki site (e.g. example.com).'
     Type: String
@@ -41,10 +41,10 @@ Conditions:
     !Not [ !Equals [ '', !Ref CloudFrontAcmCertificate ] ]
   NoSslCertificate:
     !Equals [ '', !Ref CloudFrontAcmCertificate ]
-  WPDomainName:
-    !Not [ !Equals [ '', !Ref WPDomainName ] ]  
-  NoWPDomainName:
-    !Equals [ '', !Ref WPDomainName ]
+  MWDomainName:
+    !Not [ !Equals [ '', !Ref MWDomainName ] ]  
+  NoMWDomainName:
+    !Equals [ '', !Ref MWDomainName ]
 
 Resources:
 
@@ -54,7 +54,7 @@ Resources:
     Properties:
       DistributionConfig:
         Aliases:
-        - !If [ WPDomainName, !Join [ '', [ '*.', !Ref WPDomainName ] ], !Ref 'AWS::NoValue' ]
+        - !If [ MWDomainName, !Join [ '', [ '*.', !Ref MWDomainName ] ], !Ref 'AWS::NoValue' ]
         CacheBehaviors:
         - PathPattern: wp-includes/*
           AllowedMethods:
@@ -129,7 +129,7 @@ Resources:
     Properties:
       DistributionConfig:
         Aliases:
-        - !If [ WPDomainName, !Join [ '', [ '*.', !Ref WPDomainName ] ], !Ref 'AWS::NoValue' ]
+        - !If [ MWDomainName, !Join [ '', [ '*.', !Ref MWDomainName ] ], !Ref 'AWS::NoValue' ]
         CacheBehaviors:
         - PathPattern: wp-includes/*
           AllowedMethods:

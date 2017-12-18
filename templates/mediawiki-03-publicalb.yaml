@@ -1,7 +1,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates Application Load Balancer
+Description: Architecture to host CRIB MediaWiki on AWS - Creates Application Load Balancer
 
 Metadata:
 
@@ -119,7 +119,7 @@ Resources:
       HealthCheckIntervalSeconds: 30
       HealthCheckPath: /test.php
       HealthCheckTimeoutSeconds: 10
-      Name: 'WordPressPublicAlb'
+      Name: 'MediawikiPublicAlb'
       Port: 80
       Protocol: HTTP
       Tags:
