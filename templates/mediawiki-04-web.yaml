@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Architecture to host MediaWiki on AWS - Creates MediaWiki web Auto Scaling group
+Description: Architecture to host CRIB MediaWiki on AWS - Creates MediaWiki web Auto Scaling group
 
 Metadata:
 
@@ -24,13 +24,13 @@ Metadata:
     - Label:
         default: MediaWiki Parameters
       Parameters:
-        - WPTitle
-        - WPDomainName
+        - MWTitle
+        - MWDomainName
         - MWDirectory
-        - WPAdminUsername
-        - WPAdminPassword
-        - WPAdminEmail
-        - WPLocale
+        - MWAdminUsername
+        - MWAdminPassword
+        - MWAdminEmail
+        - MWLocale
     - Label:
         default: Database Parameters
       Parameters:
@@ -75,19 +75,19 @@ Metadata:
         default: Web Subnet for AZ 1
       WebSubnet2:
         default: Web Subnet for AZ 2
-      WPAdminEmail:
+      MWAdminEmail:
         default: Admin Email
-      WPAdminPassword:
+      MWAdminPassword:
         default: Admin Password
-      WPAdminUsername:
+      MWAdminUsername:
         default: Admin Username
       MWDirectory:
         default: Site Directory
-      WPDomainName:
+      MWDomainName:
         default: Site Domain
-      WPLocale:
+      MWLocale:
         default: Language Code
-      WPTitle:
+      MWTitle:
         default: Site Title
 
 Parameters:
@@ -185,17 +185,17 @@ Parameters:
   WebSubnet2:
     Description: Select an existing web subnet for AZ 2.
     Type: AWS::EC2::Subnet::Id
-  WPAdminEmail:
+  MWAdminEmail:
     AllowedPattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
     Description: The MediaWiki admin email address.
     Type: String
-  WPAdminPassword:
+  MWAdminPassword:
     AllowedPattern: ^([a-zA-Z0-9`~!#$%^&*()_+,\\-])*$
     ConstraintDescription: Must be letters (upper or lower), numbers, and these special characters '_'`~!#$%^&*()_+,-   
     Description: The MediaWiki admin password.
     Type: String
     NoEcho: true
-  WPAdminUsername:
+  MWAdminUsername:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9_-])*([a-zA-Z0-9])$
     Description: The MediaWiki admin username.
     Type: String
@@ -203,15 +203,15 @@ Parameters:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9_-])*([a-zA-Z0-9])$
     Description: The MediaWiki site directory.
     Type: String
-  WPDomainName:
+  MWDomainName:
     AllowedPattern: ^$|(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
     Description: '[ Optional ] The main domain name of the MediaWiki site (e.g. example.com). Leave empty to use the ALB DNS name for the MediaWiki site.'
     Type: String
-  WPLocale:
-    Description: The main language of the MediaWiki site, as per https://codex.MediaWiki.org/Installing_WordPress_in_Your_Language. The default is 'en_GB'.
+  MWLocale:
+    Description: The main language of the MediaWiki site;the default is 'en_GB'.
     Type: String
     Default: en_GB
-  WPTitle:
+  MWTitle:
     AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9 _-]*)([a-zA-Z0-9])$
     Description: The MediaWiki website title.
     Type: String
@@ -231,8 +231,8 @@ Conditions:
       !Equals [ !Ref 'AWS::Region', ap-northeast-1 ],
       !Equals [ !Ref 'AWS::Region', ap-southeast-2 ]
     ]
-  NoWPDomainName:
-    !Equals [ '', !Ref WPDomainName ]
+  NoMWDomainName:
+    !Equals [ '', !Ref MWDomainName ]
 
 Mappings:
 
@@ -397,7 +397,7 @@ Resources:
               content:
                 !Sub |
                   #!/bin/bash -xe
-                  wget -P /tmp/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz
+                  wget -P /tmp/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz
                   tar -xf '/tmp/AmazonElastiCacheClusterClient-2.0.1-PHP70-64bit.tar.gz'
                   cp '/tmp/artifact/amazon-elasticache-cluster-client.so' /usr/lib64/php/7.0/modules/
                   if [ ! -f /etc/php-7.0.d/50-memcached.ini ]; then
@@ -426,7 +426,7 @@ Resources:
                   sed -i 's/opcache.memory_consumption=.*/opcache.memory_consumption=512/' /etc/php-7.0.d/10-opcache.ini
                   # download opcache-instance.php to verify opcache status
                   if [ ! -f /var/www/mediawiki/${MWDirectory}/opcache-instanceid.php ]; then
-                      wget -P /var/www/mediawiki/${MWDirectory}/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php
+                      wget -P /var/www/mediawiki/${MWDirectory}/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/opcache-instanceid.php
                   fi
               mode: 000500
               owner: root
@@ -442,9 +442,10 @@ Resources:
                     "\n",
                     "mwdir=", !Ref MWDirectory, "\n",
                     "scriptpath=\"\"\n",
-                    "domainname=", !Sub '"http://${WPDomainName}"', "\n",
+                    "domainname=", !Sub '"http://${MWDomainName}"', "\n",
                     "publicalbhostname=", !Sub '"http://${PublicAlbHostname}"', "\n",
-                    "serviceurl=", !If [ NoWPDomainName, $publicalbhostname, $domainname ], "\n",
+                    "# use public alb host name if mw domain name was empty\n",
+                    "serviceurl=", !If [ NoMWDomainName, $publicalbhostname, $domainname ], "\n",
                     "admin=\"admin\"\n",
                     "pass=\"password\"\n",
                     "\n",
@@ -453,13 +454,12 @@ Resources:
                     "if [ ! -d /var/www/mediawiki/", !Ref MWDirectory, " ]; then\n",
                     " mkdir -p /var/www/mediawiki/", !Ref MWDirectory, "\n",
                     " cd /var/www/mediawiki/", !Ref MWDirectory, "\n",
-                    " # Create phpinfo page to satisfy WebAutoScalingGroup/CreationPolicy test target\n",
+                    " # Create phpinfo page\n",
                     " echo \"<?php phpinfo(); ?>\" | sudo tee /var/www/mediawiki/", !Ref MWDirectory, "/test.php\n",
                     " # install MediaWiki if not installed\n",
-                    " # use public alb host name if mw domain name was empty\n",
-                    " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/mediawiki-1.28.2.tar.gz\n",
+                    " wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/mediawiki-1.28.2.tar.gz\n",
                     " tar xzf mediawiki-*.tar.gz -C /var/www/mediawiki/", !Ref MWDirectory, " --strip-components 1\n",
-                    "# set permissions of MediaWiki site directories\n",
+                    " # set permissions of MediaWiki site directories\n",
                     " chown -R root:apache /var/www/mediawiki/\n",
                     " find /var/www/mediawiki/ -type d -print0 | xargs -0 chmod 750\n",
                     " find /var/www/mediawiki/ -type f -print0 | xargs -0 chmod 640\n",
@@ -468,35 +468,35 @@ Resources:
                     "\n",
                     "\n",
                     " # Check for MediaWiki configuration file and if not present copy in the version for this stack\n",
-                    "   if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
-                    "     wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/LocalSettings.php\n",
-                    "     chown root:apache /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
-                    "     chmod 640 /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
-                    "     # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
-                    "     # --dbserver=", !Ref DatabaseClusterEndpointAddress,
-                    "     # --installdbuser=", !Ref DatabaseMasterUsername,
-                    "     # --installdbpass=", !Ref DatabaseMasterPassword,
-                    "     # --dbname=", !Ref DatabaseName,
-                    "     # --dbuser=", !Ref DatabaseMasterUsername,
-                    "     # --dbpass=", !Ref DatabaseMasterPassword,
-                    "     # --dbprefix=\"mw_\"",
-                    "     # --scriptpath=\"$scriptpath\"",
-                    "     # --service=$serviceurl",
-                    "     # --pass=$pass ", !Ref WPTitle, " $admin\n",
+                    " #if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
+                    "   #wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/LocalSettings.php\n",
+                    "   #chown root:apache /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
+                    "   #chmod 640 /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
+                    "   # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
+                    "   # --dbserver=", !Ref DatabaseClusterEndpointAddress,
+                    "   # --installdbuser=", !Ref DatabaseMasterUsername,
+                    "   # --installdbpass=", !Ref DatabaseMasterPassword,
+                    "   # --dbname=", !Ref DatabaseName,
+                    "   # --dbuser=", !Ref DatabaseMasterUsername,
+                    "   # --dbpass=", !Ref DatabaseMasterPassword,
+                    "   # --dbprefix=\"mw_\"",
+                    "   # --scriptpath=\"$scriptpath\"",
+                    "   # --service=$serviceurl",
+                    "   # --pass=$pass ", !Ref MWTitle, " $admin\n",
+                    " #fi\n",
                     "\n",
                     "\n",
-                    "     if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
-                    "       wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/mediawiki.mptest.magic-pocket.co.uk/latest/bits/opcache-instanceid.php\n",
-                    "     fi\n",
+                    "   if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
+                    "     wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/opcache-instanceid.php\n",
                     "   fi\n",
                     "\n",
                     "RESULT=$?\n",
                     "\n",
-                    " if [ $RESULT -eq 0 ]; then\n",
-                    "   touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.initialized\n",
-                    "   else\n",
-                    "   touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.failed\n",
-                    " fi\n",
+                    "   if [ $RESULT -eq 0 ]; then\n",
+                    "     touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.initialized\n",
+                    "     else\n",
+                    "     touch /var/www/mediawiki/", !Ref MWDirectory, "/mediawiki.failed\n",
+                    "   fi\n",
                     "fi\n"
                   ]
                 ]
@@ -539,7 +539,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            BUILD=000500
+            BUILD=000502
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
