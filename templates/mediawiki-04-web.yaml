@@ -344,9 +344,13 @@ Resources:
             - install_webserver
             - build_cacheclient
             - build_mediawiki
+            - build_parsoid
+            - build_visualeditor
             - build_opcache
             - install_cacheclient
             - install_mediawiki
+            - install_parsoid
+            - install_visualeditor
             - install_opcache
             - start_webserver
         install_webserver:
@@ -362,6 +366,7 @@ Resources:
               php70-mbstring: []          
               php70-xml: []               
               php70-json: []
+              git: []
           files:
             /tmp/create_site_conf.sh:
               content:
@@ -467,25 +472,6 @@ Resources:
                     " chown -R apache:apache /var/www/mediawiki/", !Ref MWDirectory, "/cache\n",
                     "\n",
                     "\n",
-                    " # Check for MediaWiki configuration file and if not present copy in the version for this stack\n",
-                    " #if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php ]; then\n",
-                    "   #wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/LocalSettings.php\n",
-                    "   #chown root:apache /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
-                    "   #chmod 640 /var/www/mediawiki/", !Ref MWDirectory, "/LocalSettings.php\n",
-                    "   # php /var/www/mediawiki/", !Ref MWDirectory, "/maintenance/install.php",
-                    "   # --dbserver=", !Ref DatabaseClusterEndpointAddress,
-                    "   # --installdbuser=", !Ref DatabaseMasterUsername,
-                    "   # --installdbpass=", !Ref DatabaseMasterPassword,
-                    "   # --dbname=", !Ref DatabaseName,
-                    "   # --dbuser=", !Ref DatabaseMasterUsername,
-                    "   # --dbpass=", !Ref DatabaseMasterPassword,
-                    "   # --dbprefix=\"mw_\"",
-                    "   # --scriptpath=\"$scriptpath\"",
-                    "   # --service=$serviceurl",
-                    "   # --pass=$pass ", !Ref MWTitle, " $admin\n",
-                    " #fi\n",
-                    "\n",
-                    "\n",
                     "   if [ ! -f /var/www/mediawiki/", !Ref MWDirectory, "/opcache-instanceid.php ]; then\n",
                     "     wget -P /var/www/mediawiki/", !Ref MWDirectory, "/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/bits/opcache-instanceid.php\n",
                     "   fi\n",
@@ -503,6 +489,53 @@ Resources:
               mode: 000500
               owner: root
               group: root
+        build_parsoid:
+          files:
+            /tmp/install_parsoid.sh:
+              content:
+                !Sub |
+                  #!/bin/bash -xe
+                  # Install NodeJS and NPM
+                  if [ ! -d /opt/node ]; then
+                    # Create node directory, download N installation script and make executable
+                    mkdir /opt/node
+                    cd /opt/node/
+                    wget -P /usr/bin/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/N-INSTALL
+                    chmod +x /usr/bin/N-INSTALL
+                    # Test N-INSTALL will work
+                    N_PREFIX=/opt/node N-INSTALL -t
+                    # If there are no errors run the script
+                    N_PREFIX=/opt/node N-INSTALL -y
+                    chown -R ec2-user:ec2-user /opt/node/
+                  fi
+                  # NPM is used to install Parsoid. We need to install as ec2-user because NPM submodules don't inherit the executing user's permissions.
+                  if [ ! -d /opt/node/lib/node_modules/parsoid ]; then
+                    # DO WE NEED TO SOURCE EC2-USER'S BASHRC? Let's leave it out and take a look
+                    # runuser -l ec2-usersource /home/ec2-user/.bashrc && npm install -g parsoid (maybe)
+                    echo 'export N_PREFIX="/opt/node"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"  # Added by n-install (see http://git.io/n-install-repo).' >> /home/ec2-user/.bashrc
+                    runuser -l ec2-user npm install -g parsoid
+                    cd /opt/node/lib/node_modules/parsoid
+                    # Copy Parsoid's config file from AWS (This file and its formatting requirements are archaic)
+                    wget https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/config.yaml
+                    # Create config file /opt/node/lib/node_modules/parsoid/localsettings.js
+                    echo "parsoidConfig.setMwApi({ uri: 'https://localhost/api.php', prefix: 'localhost', domain: 'localhost' });" > /opt/node/lib/node_modules/parsoid/localsettings.js
+                    chown ec2-user:ec2-user config.yaml localsettings.js
+                  fi
+                  # Daemonise the Parsoid application
+                  if [ ! -f /etc/init.d/parsoid ]; then
+                    wget -P /etc/init.d/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/parsoid
+                    chmod +x /etc/init.d/parsoid
+                  fi
+        build_visualeditor:
+          files:
+            /tmp/install_visualeditor.sh:
+              content:
+                !Sub |
+                  #!/bin/bash -xe
+                  # Install VisualEditor extension
+                  cd /tmp/
+                  wget https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/VisualEditor-REL1_29-b655946.tar.gz
+                  tar xzf VisualEditor-REL*.tar.gz -C /var/www/mediawiki/crib/extensions
         install_mediawiki:
           commands:
             install_mediawiki:
@@ -521,10 +554,28 @@ Resources:
               command: ./install_opcache.sh
               cwd: /tmp
               ignoreErrors: false
+        install_parsoid:
+          commands:
+            install_parsoid:
+              command: ./install_install_parsoid.sh.sh
+              cwd: /tmp
+              ignoreErrors: false
+        install_visualeditor:
+          commands:
+            install_visualeditor:
+              command: ./install_visualeditor.sh
+              cwd: /tmp
+              ignoreErrors: false
         start_webserver:
           services:
             sysvinit:
               httpd:
+                enabled: true
+                ensureRunning: true
+        start_parsoid:
+          services:
+            sysvinit:
+              parsoid:
                 enabled: true
                 ensureRunning: true
     Properties:
@@ -539,7 +590,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            BUILD=000502
+            BUILD=000503
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
