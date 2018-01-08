@@ -327,14 +327,14 @@ Resources:
             MaxBatchSize: 1
             MinInstancesInService: 1
             MinSuccessfulInstancesPercent: 100
-            PauseTime: PT10M
+            PauseTime: PT5M
             SuspendProcesses:
               - HealthCheck
               - ReplaceUnhealthy
               - AZRebalance
               - AlarmNotification
               - ScheduledActions
-            WaitOnResourceSignals: True
+            WaitOnResourceSignals: False
   WebLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
@@ -353,6 +353,7 @@ Resources:
             - install_visualeditor
             - install_opcache
             - start_webserver
+            - start_parsoid
         install_webserver:
           packages:
             yum:
@@ -509,16 +510,14 @@ Resources:
                     chown -R ec2-user:ec2-user /opt/node/
                   fi
                   # NPM is used to install Parsoid. We need to install as ec2-user because NPM submodules don't inherit the executing user's permissions.
-                  if [ ! -d /opt/node/lib/node_modules/parsoid ]; then
-                    # DO WE NEED TO SOURCE EC2-USER'S BASHRC? Let's leave it out and take a look
-                    # runuser -l ec2-usersource /home/ec2-user/.bashrc && npm install -g parsoid (maybe)
-                    echo 'export N_PREFIX="/opt/node"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"  # Added by n-install (see http://git.io/n-install-repo).' >> /home/ec2-user/.bashrc
-                    runuser -l ec2-user npm install -g parsoid
-                    cd /opt/node/lib/node_modules/parsoid
+                  if [ ! -f /opt/node/lib/node_modules/parsoid/localsettings.js ]; then
+                    echo 'export N_PREFIX="/opt/node"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"  # Added by n-install (see http://git.io/n-install-repo).' >> /etc/profile
+                    su -l ec2-user -c 'npm install -g parsoid'
                     # Copy Parsoid's config file from AWS (This file and its formatting requirements are archaic)
+                    cd /opt/node/lib/node_modules/parsoid/
                     wget https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/config.yaml
-                    # Create config file /opt/node/lib/node_modules/parsoid/localsettings.js
-                    echo "parsoidConfig.setMwApi({ uri: 'https://localhost/api.php', prefix: 'localhost', domain: 'localhost' });" > /opt/node/lib/node_modules/parsoid/localsettings.js
+                    # Create config file localsettings.js
+                    echo "parsoidConfig.setMwApi({ uri: 'http://localhost/api.php', prefix: 'localhost', domain: 'localhost' });" > localsettings.js
                     chown ec2-user:ec2-user config.yaml localsettings.js
                   fi
                   # Daemonise the Parsoid application
@@ -526,6 +525,9 @@ Resources:
                     wget -P /etc/init.d/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/parsoid
                     chmod +x /etc/init.d/parsoid
                   fi
+              mode: 000500
+              owner: root
+              group: root
         build_visualeditor:
           files:
             /tmp/install_visualeditor.sh:
@@ -533,9 +535,15 @@ Resources:
                 !Sub |
                   #!/bin/bash -xe
                   # Install VisualEditor extension
-                  cd /tmp/
-                  wget https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/VisualEditor-REL1_29-b655946.tar.gz
-                  tar xzf VisualEditor-REL*.tar.gz -C /var/www/mediawiki/crib/extensions
+                  if [ ! -d /var/www/mediawiki/crib/extensions/VisualEditor ]; then
+                    cd /tmp/
+                    wget https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/VisualEditor-REL1_29-b655946.tar.gz
+                    tar xzf VisualEditor-REL*.tar.gz -C /var/www/mediawiki/crib/extensions
+                    chown -R root:apache /var/www/mediawiki/crib/extensions/VisualEditor
+                  fi
+              mode: 000500
+              owner: root
+              group: root
         install_mediawiki:
           commands:
             install_mediawiki:
@@ -557,7 +565,7 @@ Resources:
         install_parsoid:
           commands:
             install_parsoid:
-              command: ./install_install_parsoid.sh.sh
+              command: ./install_parsoid.sh
               cwd: /tmp
               ignoreErrors: false
         install_visualeditor:
@@ -590,7 +598,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            BUILD=000503
+            BUILD=000510
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
