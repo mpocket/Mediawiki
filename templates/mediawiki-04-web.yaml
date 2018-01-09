@@ -343,15 +343,17 @@ Resources:
           deploy_webserver:
             - install_webserver
             - build_cacheclient
+            - build_opcache
             - build_mediawiki
             - build_parsoid
             - build_visualeditor
-            - build_opcache
+            - build_extensions
             - install_cacheclient
+            - install_opcache
             - install_mediawiki
             - install_parsoid
             - install_visualeditor
-            - install_opcache
+            - install_extensions
             - start_webserver
             - start_parsoid
         install_webserver:
@@ -544,12 +546,38 @@ Resources:
               mode: 000500
               owner: root
               group: root
+        build_extensions:
+          packages:
+            yum:
+              ImageMagick: []
+          files:
+            /tmp/install_extensions.sh:
+              content:
+                !Sub |
+                  #!/bin/bash -xe
+                  # ImageMagick - Uploads enabled in LocalSettings.php
+                  #
+                  # Image Upload limits
+                  if [ ! -f /var/www/mediawiki/crib/.htaccess ]; then
+                    echo "php_value upload_max_filesize 100M" > /var/www/mediawiki/crib/.htaccess
+                    echo "php_value post_max_size 100M" >> /var/www/mediawiki/crib/.htaccess
+                    chown root:apache /var/www/mediawiki/crib/.htaccess
+                  fi
+                  # Scribunto - settings added to LocalSettings.php
+                  if [ ! -d /var/www/mediawiki/crib/extensions/Scribunto ]; then
+                    wget -P /tmp/ https://s3-eu-west-1.amazonaws.com/deploy.mediawiki.crib.comicrelief.com/latest/extensions/Scribunto-REL1_27-4da5346.tar.gz
+                    tar -xzf /tmp/Scribunto-REL*.tar.gz -C /var/www/mediawiki/crib/extensions
+                    chown root:apache /var/www/mediawiki/crib/extensions/Scribunto
+                  fi
+              mode: 000500
+              owner: root
+              group: root
         install_mediawiki:
           commands:
             install_mediawiki:
               command: ./install_mediawiki.sh
               cwd: /tmp
-              ignoreErrors: false          
+              ignoreErrors: false
         install_cacheclient:
           commands:
             install_cacheclient:
@@ -572,6 +600,12 @@ Resources:
           commands:
             install_visualeditor:
               command: ./install_visualeditor.sh
+              cwd: /tmp
+              ignoreErrors: false
+        install_extensions:
+          commands:
+            install_visualeditor:
+              command: ./install_extensions.sh
               cwd: /tmp
               ignoreErrors: false
         start_webserver:
@@ -598,7 +632,7 @@ Resources:
         "Fn::Base64":
           !Sub |
             #!/bin/bash -xe
-            BUILD=000510
+            BUILD=000511
             yum update -y
             mkdir -p /var/www/mediawiki
             mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${ElasticFileSystem}.efs.${AWS::Region}.amazonaws.com:/ /var/www/mediawiki
